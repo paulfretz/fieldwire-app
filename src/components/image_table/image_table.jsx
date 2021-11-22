@@ -1,4 +1,4 @@
-import { TablePagination } from "@mui/material";
+import { InputBase, TablePagination} from "@mui/material";
 import { makeStyles } from "@material-ui/styles";
 import { useEffect, useState } from "react";
 import { LoadingSpinner } from "../loading_spinner";
@@ -14,7 +14,8 @@ import { ImageTableRow } from "./image_table_row";
 import { UploadImageButton } from "../upload_image/upload_image_button";
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
-import { IconButton, Tooltip, Typography, Zoom } from "@material-ui/core";
+import { IconButton, Tooltip, Typography } from "@material-ui/core";
+import SearchIcon from '@mui/icons-material/Search';
 
 const useStyles = makeStyles({
   table: {
@@ -52,8 +53,18 @@ export const ImageTable = () => {
     const [images, setImages] = useState([]);
     const [isEverythingLoaded, setIsEverythingLoaded] = useState(false);
 
-    const loadImages = async() => {
-        setIsEverythingLoaded(false)
+    const [searchValue, setSearchValue] = useState("");
+
+    const loadImages = () => {
+      setIsEverythingLoaded(false)
+      if(searchValue === ""){
+        loadAllImages();
+      } else {
+        loadSearchedImages();
+      }
+    }
+
+    const loadAllImages = async() => {
         let resp = await fetch(`http://localhost:8081/getAll?sort=${sort},${sortDirection}&page=${page}&size=${rowsPerPage}`,{method: 'GET'})
           .then((response) => response.json())
           .then((result) => {
@@ -64,14 +75,33 @@ export const ImageTable = () => {
             console.error('Error:', error);
         });
         setCount(resp.totalElements);
-        if(resp.cotent !== images){
+        if(resp.content !== images){
           setImages(resp.content);
         } else {
           setIsEverythingLoaded(true)
         }
     }
 
-    useEffect(loadImages,[]);
+    const loadSearchedImages = async() => {
+      let resp = await fetch(`http://localhost:8081/searchByName?&name=${searchValue}&sort=${sort},${sortDirection}&page=${page}&size=${rowsPerPage}`,{method: 'GET'})
+        .then((response) => response.json())
+        .then((result) => {
+          console.log('Success:', result);
+          return result;
+        })
+        .catch((error) => {
+          console.error('Error:', error);
+      });
+
+      setCount(resp.totalElements);
+      if(resp.content !== images){
+        setImages(resp.content);
+      } else {
+        setIsEverythingLoaded(true)
+      }
+    }
+
+    useEffect(loadAllImages,[]);
     useEffect(loadImages,[page, rowsPerPage]);
     useEffect(() => {setIsEverythingLoaded(true)},[images]);
 
@@ -142,6 +172,15 @@ export const ImageTable = () => {
       }
     }
 
+    const handleSearchChange = (e) => {
+      console.log(e)
+        if(searchValue !== e.target.value){
+          setSearchValue(e.target.value);
+        }
+    }
+
+    useEffect(loadImages,[searchValue]);
+
     const determineIfSortDoneLoading = () => {
       if(!sortLoading  && !sortDirectionLoading){
         loadImages();
@@ -184,7 +223,22 @@ export const ImageTable = () => {
                   </IconButton>
                 </Tooltip>
                 </TableCell>
-                <TableCell align="left" className={classes.headerStyle}></TableCell>
+                <TableCell align="left" className={classes.headerStyle}>
+                  <Paper
+                    component="form"
+                    sx={{ p: '2px 4px', display: 'flex', alignItems: 'center'}}
+                  >
+                    <InputBase
+                        sx={{ ml: 1, flex: 1 }}
+                        placeholder="Search Images"
+                        value={searchValue}
+                        onChange={handleSearchChange}
+                    />
+                    <IconButton type="submit" sx={{ p: '10px' }} aria-label="search">
+                      <SearchIcon />
+                    </IconButton>
+                  </Paper>
+                </TableCell>
                 <TableCell align="left" className={classes.headerStyle}></TableCell>
               </TableRow>
             </TableHead>
